@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<title>Visitpedia demo</title>
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src = "river/river.js"> </script>
+<script src="word_cloud.js"></script>
+
+<link href="https://fonts.googleapis.com/css?family=Noto+Serif+JP|Noto+Serif+KR" rel="stylesheet">	
+</head>
+
+<body>
+
+<div id="vis1"> </div>
+
+<script>
+
+	  
+//FOR THE CALENDAR GRAPH
+var w = 700, h = 570;
+var center = 300, center_y = 300;
+var outerRadius = 350, innerRadius = 500;
+var ox = 800, oy = -800;
+
+//SVG FOR THE CALENDAR GRAPH
+var svg = d3.select("#vis1")
+			.append("svg")
+			.attr("width", w)
+			.attr("height", h)
+			.attr("transform", "translate(" + ox + ", " + oy + ")");		
+
+		
+var calendar_year = "2016";			  
+gen_calendar(calendar_year);
+
+// Get the data for line graph
+d3.csv("yearly2.csv", function(error, data) {
+  if (error) throw error;
+
+  // format the data
+  data.forEach(function(d) {
+      d.year = d.year;
+      d.total = +d.total;
+  });
+  
+
+x_line.domain(data.map(function(d) { return d.year; }));
+y_line.domain([d3.min(data,function(d){ return d.total;})-10000000, d3.max(data, function(d) { return d.total; })]);
+
+rc.domain([d3.min(data,function(d){ return d.total;}), d3.max(data, function(d) { return d.total; })]);
+
+var div = d3.select("body").append("div")	
+			.attr("class", "tooltip")				
+			.style("opacity", 0);
+
+	
+	
+//SVG FOR WORD CLOUD	
+var g_w = d3.select("#vis1").append("svg")
+		    .attr("width", width+20)
+		    .attr("height",300)
+		    .attr("transform", "translate(50," + -850 + ")");		
+var wordc = g_w.append("g")
+			   .attr("class","wordc")
+			   .attr("transform", "translate(0," + 30 + ")");
+					   
+var line = d3.line()
+			 .x(function(d){ return x_line(d.year); })
+			 .y(function(d){ return y_line(d.total); });
+	
+    svg_line.append("path")
+	 	    .datum(data)
+			.attr("class", "line")
+			.attr("d", line);
+
+	svg_line.selectAll("circle")
+			.data(data)
+			.enter().append("circle")
+		    .attr("class", function(d){return "line_circ";})
+		    .attr("id", function(d){ return d.year;})
+		    .attr("cx", function(d){ return x_line(d.year);})
+		    .attr("cy", function(d){ return y_line(d.total);})
+		    .attr("r", function(d){ return rc(d.total);}) 
+		    .attr("fill","red")
+			.on("mouseover", function(d) {
+				  div.transition()		
+					 .duration(200)		
+					 .style("opacity", 1);
+				  var year = d.year;
+				  var pageX = d3.event.pageX;
+				  var pageY = d3.event.pageY - 28
+				  
+				  d3.csv("most_viewed.csv", function(error, data2) {
+					if (error) throw error; 
+					
+					var pg = "", c = "";
+					data2.forEach(function(d){
+					  if(d.Date === year){
+					   pg = d.Page;
+					   v = d.Views;}
+					 });
+					div.html("Total Pageviews ="+ d.total+ "<br/>" + "Most Viewed =" + pg + "<br/>" +"Views Received ="+ v)	
+					   .style("left", (pageX) + "px")		
+					   .style("top", (pageY) + "px");	
+				  });
+    	     })
+		    .on("mouseout", function(d){		
+			      div.transition()		
+				     .duration(100)		
+				     .style("opacity", 0);
+			 })
+			.on("click",function(d){ 
+	   
+				 d3.selectAll(".w").remove("*");
+				 var yr = d.year;
+				 
+				 d3.csv(d.year+".csv", function(error, data) {
+					if (error) throw error;
+					
+					var words = [];
+					data.forEach(function(d){
+					  words.push(d.Page);
+					});
+							
+					d3.layout.cloud().size([700,400])
+					  .words(data)
+					  .timeInterval(30)
+					  .rotate(0)
+					  .text(function(d){return d.Page;})
+					  .fontSize(20)
+					  .fontWeight(["bold"])
+					  .spiral("rectangular")
+					  .on("end", draw)
+					  .start();
+				  
+					var k = 0, y = 0, x = 0;
+					function draw(words){
+						 var fs = {"Dec'15":300000,"June'16":360000,"Dec'16":360000,"June'17":200000,"Dec'17":200000,"June'18":170000,"Oct'18":200000};
+									
+						 wordc.selectAll("text")
+							  .data(words)
+							  .enter().append("text")
+							  .attr("class","w")
+							  .style("font-size", function(d){ return d.Views/fs[yr];}) // change code here to make it more dynamic instead of using hard-coded values
+							  .attr("x", function(d,i){	return d.x; })
+							  .attr("y", function(d,i){ return d.y; })
+							  .attr("transform", function(d){ return "translate(300,130)rotate(" + d.rotate + ")";	})
+							  .attr("text-anchor", "middle")	
+							  .style("fill",function(d,i){ return color_word(i); })
+							  .style("font","sans-serif")
+							  .text(function(d){ return d.Page; })
+							  .on("mouseover", function(d){
+									div.transition()		
+									   .duration(200)		
+									   .style("opacity", 1);
+													
+									var pageX = d3.event.pageX;
+									var pageY = d3.event.pageY - 28	
+
+									div.html("Pageviews = "+ d.Views)	
+									   .style("left", (pageX) + "px")		
+									   .style("top", (pageY) + "px")
+									   .style("font-size", "20px");								
+
+								})
+							  .on("mouseout", function(d){		
+									div.transition()		
+									   .duration(100)		
+									   .style("opacity", 0);
+								});							
+						}		  
+				  });
+						
+				if(d.year == "June'16" || d.year == "Dec'16"){ 
+					calendar_year = "2016";
+					}
+				else if(d.year == "June'17" || d.year == "Dec'17"){
+					calendar_year = "2017";
+					}
+				d3.select("svg");
+				svg.selectAll("*").remove();
+				gen_calendar(calendar_year);
+	      });
+			 
+			 
+	  // Add the X Axis
+	svg_line.append("g")
+		    .attr("transform", "translate(0," + 500 + ")")
+		    .call(d3.axisBottom(x_line));
+		 
+	svg_line.append("text")             
+			.attr("transform", "translate(" + (width) + " ," + (510) + ")")
+		    .attr("dy", "1em")					   
+		    .style("text-anchor", "end")
+		    .text("Date");
+		 
+	  // Add the Y Axis
+    svg_line.append("g")
+		    .call(d3.axisLeft(y_line));
+
+	svg_line.append("text")
+		    .attr("transform", "rotate(-90)")
+		    .attr("y", 0 - margin.left)
+		    .attr("x",-250)
+		    .attr("dy", "1em")
+		    .style("text-anchor", "middle")
+		    .text("Views");      
+  });
+
+
+
+		
+function gen_calendar(calendar_year){		
+
+//Init for radial chart (central ribbon)
+
+ var outerRadius_r = 105,
+    innerRadius_r = 50;
+
+var angle = d3.scaleTime()
+    .range([0, 2 * Math.PI]);
+
+var radius = d3.scaleLinear()
+    .range([innerRadius_r, outerRadius_r]);
+
+var nest = d3.nest()
+    .key(function(d) { return "k"; });
+
+var line = d3.lineRadial()
+    .curve(d3.curveCardinalClosed)
+    .angle(function(d) { return angle(d.Month); }) 
+    .radius(function(d) { return radius(d.Total); });
+
+var area = d3.areaRadial()
+    .curve(d3.curveCardinalClosed)
+    .angle(function(d) { return angle(d.Month)-0.25;})
+    .innerRadius(function(d) { return radius(0); })
+    .outerRadius(function(d) { return radius(d.Total); });
+
+//Init for radial chart END
+
+//Init for calendar graph
+var dataset = [1,1,1,1,1,1,1,1,1,1,1,1];
+var pie = d3.pie()
+			.value(function(d) { return d; }); 
+			
+var color = d3.scaleLinear()
+			  .range(["#7ab3f1", "#8B0000"]);
+
+var angles = {};
+angles["Jan"]=[]; angles["Feb"]=[]; angles["Mar"]=[]; angles["Apr"]=[]; angles["May"]=[];angles["Jun"]=[]; angles["Jul"]=[]; angles["Aug"]=[];
+angles["Sep"]=[]; angles["Oct"]=[]; angles["Nov"]=[]; angles["Dec"]=[];	
+
+var months = ["May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
+var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+
+//Plotting lines to form petals representing the 12 months of an year
+var ang_diff = 0.02;
+var r1 = 170;
+var r2 = 250;			
+var line1 = svg.selectAll("line")
+               .data(pie(dataset))
+			   .enter().append("line");
+   
+    line1.attr("x1", function(d) { return center + r1 * Math.cos(d.startAngle); })
+	     .attr("y1", function(d) { return center + r1 * Math.sin(d.startAngle); })
+	     .attr("x2", function(d) { return center + r2 * Math.cos(d.startAngle + ang_diff); })
+	     .attr("y2", function(d) { return center + r2 * Math.sin(d.startAngle + ang_diff); })
+	     .style("stroke","black");
+
+var line2 = svg.selectAll("line2")
+		       .data(pie(dataset))
+			   .enter().append("line");   
+
+    line2.attr("x1", function(d) { return center + r2 * Math.cos(d.startAngle + ang_diff); })
+ 	     .attr("y1", function(d) { return center + r2 * Math.sin(d.startAngle + ang_diff); })
+	     .attr("x2", function(d) { return center + r2 * Math.cos(d.endAngle - ang_diff); })
+	     .attr("y2", function(d) { return center + r2 * Math.sin(d.endAngle - ang_diff); })
+	     .style("stroke","black");
+   
+var line3 = svg.selectAll("line3")
+			   .data(pie(dataset))
+			   .enter().append("line");
+   
+    line3.attr("x1", function(d) { return center + r1 * Math.cos(d.endAngle); })
+	     .attr("y1", function(d) { return center + r1 * Math.sin(d.endAngle); })
+	     .attr("x2", function(d) { return center + r2 * Math.cos(d.endAngle - ang_diff); })
+		 .attr("y2", function(d) { return center + r2 * Math.sin(d.endAngle - ang_diff); })
+		 .style("stroke","black");
+
+var labels_m = svg.selectAll("months")
+				  .data(pie(dataset))
+				  .enter().append("text")
+				  .attr("transform", "translate(" + center + ", " + center_y + ")")
+				  .attr("x",function(d) { return 5 + 250 * Math.cos((d.startAngle + d.endAngle)/2);})
+				  .attr("y",function(d) { return  250 * Math.sin((d.startAngle + d.endAngle)/2);})
+				  .style("text-anchor",function(d) { return d.index < 9 && d.index > 2 ? "end" : "start"; })
+				  .text(function(d){
+						 angles[months[d.index]].push([d.startAngle,d.endAngle]);
+						 return months[d.index];
+ 					 })
+				  .each(function(d){
+					  d3.select(this).selectAll("Number_month").append("text")
+						.attr("x",function(d){ return 150 * Math.cos((d.startAngle + d.endAngle)/2); })
+						.attr("y",function(d){ return 150 * Math.sin((d.startAngle + d.endAngle)/2); })			  
+						.text(function(d){return d.index + 1;})
+						.style("font-size", "190px");	
+				  
+				   });
+				  
+
+//Now let's plot the circles and days of the week
+
+  //Days of the week
+	svg.selectAll("g.text")
+	   .data(pie(dataset))
+	   .enter().append("g")
+	   .attr("class", "days_label")
+	   .attr("transform", "translate(" + center + ", " + center_y + ")")
+	   .each(function(d){ 
+			d2 = d.startAngle; 
+			d3.select(this).selectAll("gtext")
+			  .data(days)
+			  .enter().append("text")	
+			  .attr("class","text")
+			  .attr("x",function(d,i){ return 227 * Math.cos(d2 + (i * 0.07) + 0.055); })
+			  .attr("y",function(d,i){ return 227 * Math.sin(d2 + (i * 0.07) + 0.055); })
+			  .style("text-anchor",function(d,i) { if(d2 < 3.5) return "end"; else return "start";})
+			  .text(function(d){ return d; })
+			  .style("font-size", "9px")
+			 });
+	  
+	file = "calendar_data"
+	if(calendar_year == "2016")
+	 file = file + "2016.csv";
+	else if(calendar_year == "2017")
+	 file = file + "2017.csv";
+	  
+	d3.csv(file, function(error, data){ 
+		if (error) throw error;
+
+		var cei_data = {};
+		cei_data["Jan"]=[];
+		cei_data["Feb"]=[]; cei_data["Mar"]=[]; cei_data["Apr"]=[]; cei_data["May"]=[];cei_data["Jun"]=[]; cei_data["Jul"]=[]; cei_data["Aug"]=[];
+		cei_data["Sep"]=[]; cei_data["Oct"]=[]; cei_data["Nov"]=[]; cei_data["Dec"]=[];
+
+		var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+		data.forEach(function(d){
+		 var str = d.Date;
+		 var m_num = str.split("/",1);
+		 cei_data[m[m_num-1]].push([d.Date,d.Total]);
+		}); 
+
+		color.domain([0, d3.max(data, function(d){ return d.Total/10000; })]);
+		var arr_days_m = [31,29,31,30,31,30,31,31,30,31,30,31];
+		if(calendar_year == "2017")
+		 arr_days_m[1] = 28
+
+		var i = 6, m_c = 0, r a_nil = [0,0];
+
+	//To plot circles representing the days 
+		while(m_c < 12){
+		 days_m = 0;
+		 var r_m = 212;
+		 var s_angle = angles[m[m_c]][0][0];
+
+		 while(days_m <= arr_days_m[m_c]){
+			
+		    var date = '';
+			svg.append("circle")
+			   .attr("class", "days_dots")
+			   .attr("id","days_dots"+(m_c + 1))
+			   .attr("cx", r_m * Math.cos(s_angle + (i * 0.07)))
+			   .attr("cy", r_m * Math.sin(s_angle + (i * 0.07)))
+			   .attr("r",6.5)
+			   .attr("transform", "translate(" + center + ", " + center_y + ")")
+			   .style("opacity",1)
+			   .style("fill", function(){
+					 date = date.concat((m_c+1).toString(),'/',(days_m+1).toString(), '/',calendar_year);
+
+					 var total = cei_data[m[m_c]].find(function(element){ return element[0] == date; });
+					 
+					 if(total === undefined)
+					  total = a_nil;
+					 else
+					  total[1] = total[1]/10000;
+					
+					 return color(total[1]); 
+					});
+				
+			if(0.06 + s_angle + (i * 0.07) >= angles[m[m_c]][0][1]){ 
+				r_m = r_m - 13;
+				i = 0;
+			 }
+		
+		    i = i + 1;
+		    days_m = days_m + 1;
+		  }
+			
+	   //DAYS AROUND THE RIBBON
+		svg.append("text").attr("class","days_ribbon")
+		   .attr("x",function(d){ return 120 * Math.cos((s_angle+angles[m[m_c]][0][1])/2); })
+		   .attr("y",function(d){ return 120 * Math.sin((s_angle+angles[m[m_c]][0][1])/2); })			  
+		   .text(m_c + 1)
+		   .style("font-size", "12px")
+		   .attr("transform", "translate(" + center + ", " + center_y + ")");
+		
+		m_c = m_c + 1;	
+	   }
+
+		svg.append("text")
+		   .attr("x",center-10)
+		   .attr("y",center_y)
+		   .text(calendar_year)
+		   .style("font-size", "15px");
+
+		svg.on("click", function() {
+			//On selecting a particular month, the days get highlighted and the central ribbon is updated
+  		    var coords = d3.mouse(this);
+			var ind = 0;
+			for(var key in angles){
+			   var val = angles[key][0];
+			   var coord_x = [center + (210 * Math.cos(val[0])), center + (200 * Math.cos(val[1]))];
+			   var coord_y = [center + (210 * Math.sin(val[0])), center + (210 * Math.sin(val[1]))];
+				
+			   if(coord_x[0] < coords[0] && coords[0] < coord_x[1]){
+				 if(coord_y[0] < coords[1] && coords[1] < coord_y[1]){
+				    ind = m.indexOf(key)+1; 
+				    break;
+				   }
+				 else if(coord_y[0] > coords[1] && coords[1] > coord_y[1]){
+				    ind = m.indexOf(key)+1; 
+					break;
+				   }
+			    }
+			   else if(coord_x[0] > coords[0] && coords[0] > coord_x[1]){
+				 if(coord_y[0] < coords[1] && coords[1] < coord_y[1]){
+				    ind = m.indexOf(key)+1; 
+				    break;
+  			       }
+				 else if(coord_y[0] > coords[1] && coords[1] > coord_y[1]){
+				    ind = m.indexOf(key)+1;
+				    break;
+				   }											
+			    }					
+			 }
+
+			var	id_day = "#days_dots" + ind;	
+			d3.selectAll(".days_dots")
+			  .style("opacity",0.8)
+			  .style("stroke","none");
+			d3.select("body").selectAll(id_day)
+			  .style("opacity",1)
+			  .style("stroke","black");
+				
+			if(ind != 0){
+			 //FOR UPDATING THE RADIAL CHART 		
+			  update_days(ind);
+				
+			  var i = 0, data_rad = [];
+			  data_rad[0] = {key:"k", values:[]};
+		 
+			  var k = 0; var flag = 0; var curr = {};
+			  var outerRadius_r = 115, innerRadius_r = 50;		
+			  var angle = d3.scaleTime()
+					        .range([0, 2 * Math.PI]);
+
+			  var radius = d3.scaleLinear()
+						     .range([innerRadius_r, outerRadius_r]);			
+			  var line = d3.lineRadial()
+						   .curve(d3.curveCardinalClosed)
+						   .angle(function(d){ return angle(d.day); }) 
+						   .radius(function(d){ return radius(d.Total); });
+
+			  var area = d3.areaRadial()
+						   .curve(d3.curveCardinalClosed)
+						   .angle(function(d){ return angle(d.day - 4);})
+						   .innerRadius(function(d){ return radius(0); })
+						   .outerRadius(function(d){ return radius(d.Total); });
+
+			  for(i = 0; i<arr_days_m[ind-1]; i++){
+				 flag = 0;
+ 				 date = "";
+				 date = date.concat(ind.toString(),'/',(i+1).toString(), '/',calendar_year);
+					
+				 for(k = 0; k < data.length; k++){
+						
+					curr = data[k];
+				    if(curr.Date == date){
+				      curr.Total = +curr.Total; 	
+				      curr.day = i+1;
+				      data_rad[0].values[i] = curr; 
+					  flag =0;	
+					  break;
+					 }
+					else{
+					  flag = 1;
+					 }
+
+				  }
+			  if(flag == 1){
+			    curr.Total = 0; 	
+			    curr.day = i+1;			  
+			    data_rad[0].values[i] = curr;
+	  
+			   }
+				
+			  }
+					
+			  angle.domain([0, d3.max(data, function(d){ return d.day; })]); 
+			  radius.domain([0, d3.max(data, function(d){ return d.Total; })]);
+				
+			  svg.selectAll(".layer").remove();
+
+			  svg.selectAll(".layer")
+				 .data(data_rad)
+				 .enter()
+				 .append("path")
+				 .attr("class", "layer")
+				 .attr("d", function(d){ return area(d.values); })
+				 .style("fill", function(d,i){ return "grey"; })
+				 .attr("transform", "translate(" + center + "," + center_y + ")");
+		     }	
+		 
+		  });
+		  
+	 function update_days(ind){
+			
+		svg.selectAll(".days_ribbon").remove();
+		var m_days = arr_days_m[ind-1]; 
+		var s_angle = angles[m[ind-1]][0][0];
+		var i = 0;
+		while(i < m_days){	
+			svg.append("text")
+			   .attr("class","days_ribbon")
+			   .attr("x",function(d) { return 120 * Math.cos((s_angle + i/5 ))}) 
+			   .attr("y",function(d) { return 120 * Math.sin((s_angle + i/5 ))}) 		  
+			   .text(i+1)
+			   .style("font-size", "12px")
+			   .attr("transform", "translate(" + center + ", " + center_y + ")");
+		
+			i++;
+
+		  }
+	 
+		}
+	  });
+
+	var data_radial = [];
+	data_radial[0] = {key:"k", values:[]};
+
+	file_ribbon = "ribbon_data"+calendar_year+".csv"
+		
+	d3.csv(file_ribbon, function(error, data) {
+	  if (error) throw error;
+	  
+	  var i = 0;
+
+	  data.forEach(function(d){
+		d.Month = +d.Month;
+		d.Total = +d.Total;	
+		data_radial[0].values[i] = d;
+		i++;
+
+	  });
+
+
+	  // Extend the domain slightly to match the range of [0, 2π].
+	  angle.domain([0, d3.max(data, function(d) { return d.Month+1; })]); 
+	  radius.domain([0, d3.max(data, function(d) { return d.Total; })]);
+
+	  svg.selectAll(".layer")
+		 .data(data_radial)
+		 .enter()
+		 .append("path")
+		 .attr("class", "layer")
+		 .attr("d", function(d) { return area(d.values); })
+		 .style("fill", function(d,i){ return "grey"; })
+		 .attr("transform", "translate(" + center + "," + center_y + ")");
+	  
+	  
+	 });
+	 
+//ADD A LEGEND FOR THE CALENDAR GRAPH
+
+    var defs = svg.append("defs");
+	var grad = defs.append("linearGradient")
+				   .attr("id","linear-gradient")
+				   .attr("x1", "0%")
+				   .attr("y1", "0%")
+				   .attr("x2", "0%")
+				   .attr("y2", "100%");
+
+	grad.append("stop")
+		.attr("offset", "0%")
+		.attr("stop-color", "#8B0000"); //light blue 
+
+
+	grad.append("stop")
+		.attr("offset", "100%")
+		.attr("stop-color", "#7ab3f1"); //dark blue			
+	
+	svg.append("rect")
+		.attr("width", 20)
+		.attr("height", 300)
+		.attr("x",center + 330)
+		.attr("y",200)
+		.style("fill", "url(#linear-gradient)");	 
+	
+	svg.append("text")
+		.text("Low")
+		.attr("x",center + 355)
+		.attr("y",500)
+		.attr("font-size", "15px")
+		.attr("fill","black");
+				
+	svg.append("text")
+		.text("High")
+		.attr("x",center + 355)
+		.attr("y",211)
+		.attr("font-size", "15px")
+		.attr("fill","black");		
+
+}
+
+</script>
+
+</body>
+</html>
