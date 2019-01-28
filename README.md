@@ -13,3 +13,4 @@ After the extraction of page counts, I applied the CUSUM algorithm to detect ent
 All the graphs were implemented from scratch using D3.js.
 
 ![alt text](https://github.com/Aishwarya-Devulapalli/Data-vis/blob/master/Line%26wordcloud.PNG)
+![alt text](https://github.com/Aishwarya-Devulapalli/Data-vis/blob/master/calendar_graph.PNG)
