@@ -11,3 +11,5 @@ For the dataset, I scraped the Topviews Analysis webpage to retrieve the daily p
 After the extraction of page counts, I applied the CUSUM algorithm to detect entry events. To detect events as soon as they start, a fast-initial response time wass added. An Upper Control Limit was added to only consider important events.
 
 All the graphs were implemented from scratch using D3.js.
+
+[!alt text] (https://github.com/Aishwarya-Devulapalli/Data-vis/blob/master/Line%26wordcloud.PNG)
